@@ -4,6 +4,9 @@ import "./App.css";
 
 const WeatherApp = () => {
   const [location, setLocation] = useState("");
+  const [lat, setLat] = useState("");
+  const [lon, setLon] = useState("");
+  const [locationData, setLocationData] = useState("");
   const [weatherData, setWeatherData] = useState(null);
   const [forecastData, setForecastData] = useState(null);
   const [favoriteLocations, setFavoriteLocations] = useState([]);
@@ -13,34 +16,69 @@ const WeatherApp = () => {
   const [geolocationError, setGeolocationError] = useState(null);
   const [temperatureUnit, setTemperatureUnit] = useState("celsius");
 
+  useEffect(() => {
+    if (locationData) {
+      setLat(locationData[0].lat);
+      setLon(locationData[0].lon);
+    }
+  }, [locationData]);
+  
+  useEffect(() => {
+    if (lat && lon) {
+      fetchWeatherData();
+      fetchForecastData();
+    }
+  },[lat,lon])
+
   const handleLocationChange = (e) => {
     setLocation(e.target.value);
   };
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
     if (location.trim() === "") {
       setError("Please enter a location.");
       return;
     }
 
-    fetchWeatherData();
-    fetchForecastData();
+    await fetchLocationData();
+  };
+
+  const fetchLocationData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const apiKey = "1fcdc5c66050bffb160bbbd7a9f044a5"; // Replace with your OpenWeatherMap API key
+
+      const apiUrl = `http://api.openweathermap.org/geo/1.0/direct?q=${location}&appid=${apiKey}`;
+
+      const response = await axios.get(apiUrl);
+
+      setLocationData(response.data);
+
+    } catch (error) {
+      setError(
+        "An error occurred while fetching Location data. Please try again."
+      );
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const fetchWeatherData = async () => {
     try {
       setLoading(true);
       setError(null);
-
       const apiKey = "1fcdc5c66050bffb160bbbd7a9f044a5"; // Replace with your OpenWeatherMap API key
-      const apiUrl = `https://api.openweathermap.org/data/2.5/weather?q=${location}&appid=${apiKey}&units=metric`;
-
+      const apiUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`;
       const response = await axios.get(apiUrl);
       setWeatherData(response.data);
+      console.log(weatherData);
     } catch (error) {
       setError(
         "An error occurred while fetching weather data. Please try again."
       );
+
       console.error(error);
     } finally {
       setLoading(false);
@@ -53,10 +91,10 @@ const WeatherApp = () => {
       setError(null);
 
       const apiKey = "1fcdc5c66050bffb160bbbd7a9f044a5"; // Replace with your OpenWeatherMap API key
-      const apiUrl = `https://api.openweathermap.org/data/2.5/forecast?q=${location}&appid=${apiKey}&units=metric`;
-
+      const apiUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`;
       const response = await axios.get(apiUrl);
       setForecastData(response.data);
+      console.log(response);
     } catch (error) {
       setError(
         "An error occurred while fetching forecast data. Please try again."
@@ -180,8 +218,9 @@ const WeatherApp = () => {
         <input
           type="text"
           placeholder="Enter location"
-          value={location}
-          onChange={handleLocationChange}
+          // value={location}
+          // onChange={handleLocationChange}
+          onKeyUp={handleLocationChange}
         />
         <button onClick={handleSearch}>Search</button>
       </div>
@@ -192,45 +231,73 @@ const WeatherApp = () => {
 
       {geolocationError && <p className="error">{geolocationError}</p>}
 
-      {weatherData && (
-        <div className="current-weather">
-          <h2>Current Weather</h2>
-          <p>
-            Temperature: {convertTemperature(weatherData.main.temp)}°
-            {temperatureUnit.toUpperCase()}
-          </p>
-          <p>Humidity: {weatherData.main.humidity}%</p>
-          <p>Wind Speed: {weatherData.wind.speed} km/h</p>
-          <p>Weather Description: {weatherData.weather[0].description}</p>
-          <img
-            src={getWeatherIcon(weatherData.weather[0].icon)}
-            alt="Weather Icon"
-          />
-          <button onClick={handleAddFavorite}>Add to Favorites</button>
-        </div>
-      )}
+      {/* Current weather */}
+      <div>
+        {weatherData && (
+          <div className="current-weather">
+            <h2>Current Weather</h2>
+            <p>
+              Temperature: {convertTemperature(weatherData.main.temp)}°
+              {temperatureUnit.toUpperCase()}
+            </p>
+            <p>Humidity: {weatherData.main.humidity}%</p>
+            <p>Wind Speed: {weatherData.wind.speed} km/h</p>
+            <p>Weather Description: {weatherData.weather[0].description}</p>
+            <img
+              src={getWeatherIcon(weatherData.weather[0].icon)}
+              alt="Weather Icon"
+            />
+            <button onClick={handleAddFavorite}>Add to Favorites</button>
+          </div>
+        )}
+      </div>
+      {/*  weather forecast */}
+      <div>
+        {forecastData && (
+          <div className="current-weather">
+            <h2>Weather Forecast</h2>
+            <p>
+              Temperature: {convertTemperature(weatherData.main.temp)}°
+              {temperatureUnit.toUpperCase()}
+            </p>
+            <p>Humidity: {weatherData.main.humidity}%</p>
+            <p>Wind Speed: {weatherData.wind.speed} km/h</p>
+            <p>Weather Description: {weatherData.weather[0].description}</p>
+            <img
+              src={getWeatherIcon(weatherData.weather[0].icon)}
+              alt="Weather Icon"
+            />
+            <button onClick={handleAddFavorite}>Add to Favorites</button>
+          </div>
+        )}
+      </div>
 
-      {favoriteLocations.length > 0 && (
-        <div className="favorite-locations">
-          <h2>Favorite Locations</h2>
-          {favoriteWeatherData.map((favoriteData, index) => (
-            <div className="favorite-location" key={index}>
-              <h3>{favoriteLocations[index]}</h3>
-              <p>
-                Temperature: {convertTemperature(favoriteData.main.temp)}°
-                {temperatureUnit.toUpperCase()}
-              </p>
-              <p>Humidity: {favoriteData.main.humidity}%</p>
-              <p>Wind Speed: {favoriteData.wind.speed} km/h</p>
-              <p>Weather Description: {favoriteData.weather[0].description}</p>
-              <img
-                src={getWeatherIcon(favoriteData.weather[0].icon)}
-                alt="Weather Icon"
-              />
-            </div>
-          ))}
-        </div>
-      )}
+      {/* favorite locations */}
+      <div>
+        {favoriteLocations.length > 0 && (
+          <div className="favorite-locations">
+            <h2>Favorite Locations</h2>
+            {favoriteWeatherData.map((favoriteData, index) => (
+              <div className="favorite-location" key={index}>
+                <h3>{favoriteLocations[index]}</h3>
+                <p>
+                  Temperature: {convertTemperature(favoriteData.main.temp)}°
+                  {temperatureUnit.toUpperCase()}
+                </p>
+                <p>Humidity: {favoriteData.main.humidity}%</p>
+                <p>Wind Speed: {favoriteData.wind.speed} km/h</p>
+                <p>
+                  Weather Description: {favoriteData.weather[0].description}
+                </p>
+                <img
+                  src={getWeatherIcon(favoriteData.weather[0].icon)}
+                  alt="Weather Icon"
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
